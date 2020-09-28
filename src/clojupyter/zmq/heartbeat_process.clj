@@ -1,15 +1,9 @@
 (ns clojupyter.zmq.heartbeat-process
   (:require [clojupyter.log :as log]
             [clojupyter.shutdown :as shutdown]
-            [clojupyter.state :as state]
-            [clojupyter.util :as u]
             [clojupyter.util-actions :as u!]
-            [clojupyter.zmq-specs :as zp]
             [clojupyter.zmq-util :as zutil]
-            [clojure.core.async :as async :refer [>!! alts!! chan]]
-            [clojure.spec.alpha :as s]
-            [clojure.spec.test.alpha :refer [instrument]]
-            [clojure.string :as str]
+            [clojure.core.async :as async :refer [>!! chan]]
             [io.simplect.compose :refer [C]]))
 
 (defn start-hb

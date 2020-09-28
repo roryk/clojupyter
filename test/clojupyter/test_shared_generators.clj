@@ -1,7 +1,5 @@
 (ns clojupyter.test-shared-generators
-  (:require [clojupyter.install.filemap :as fm]
-            [clojupyter.install.local-specs :as lsp]
-            [clojupyter.messages-specs :as msp]
+  (:require [clojupyter.messages-specs :as msp]
             [clojupyter.test-shared :as ts]
             [clojupyter.util-actions :as u!]
             [clojure.java.io :as io]
@@ -11,10 +9,6 @@
             [clojure.test.check.generators :refer [sample]]
             [io.simplect.compose :refer [C def- p redefn]]))
 
-(def LSP-DEPEND
-  "Ensures dependency due to use of `:local/...` keywords.  Do not delete."
-  lsp/DEPEND-DUMMY)
-
 (def R gen/return)
 
 ;;; ----------------------------------------------------------------------------------------------------
@@ -23,9 +17,6 @@
 
 (def- g-digits*
   (gen/elements '[0 1 2 3 4 5 6 7 8 9]))
-
-(def- g-filetype*
-  (s/gen :local/filetype))
 
 (defn- g-name*
   "Generator producing alphanum strings ('names') between 2 and 5 chars long."
@@ -122,25 +113,6 @@
 
 (def g-flag-single
   (gen/fmap (p str "-") (g-alphanum 1 1)))
-
-(defn g-file
-  [string-generator]
-  (gen/fmap io/file string-generator))
-
-(defn g-filemap
-  [files]
-  (let [files (remove nil? files)]
-    (gen/let [types (gen/vector g-filetype* (count files))]
-      (->> (map vector files types)
-           (into {})
-           fm/filemap))))
-
-(def g-filemap-random
-  (gen/let [files (gen/vector g-path*)
-            M (g-filemap files)]
-    (R M)))
-
-(def g-filetype g-filetype*)
 
 (defn g-hex-string
   [minlen maxlen]

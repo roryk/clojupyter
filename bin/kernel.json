@@ -1,0 +1,28 @@
+#!/bin/env bash
+
+[[ $# == 0 ]] && { echo Wrong number of arguments \(0\) passed. >&2;
+                   exit 1; }
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --identity|-i)
+        IDENT=$2
+        shift
+        shift
+        ;;
+        *)
+        LIBPATH=$1
+        shift
+        ;;
+    esac
+done
+
+[[ -z $IDENT ]] && IDENT=clojupyter-$($(dirname $0)/version)
+
+cat <<EOF
+{"env": {"CLASSPATH": "$LIBPATH/$IDENT/$IDENT.jar:$LIBPATH/$IDENT/plugins/enabled/*:\${CLASSPATH}"},
+ "argv": ["java", "clojupyter.kernel.core", "{connection_file}"],
+ "display_name": "Clojure ($IDENT)",
+ "language": "clojure",
+ "interrupt_mode": "message"}
+EOF

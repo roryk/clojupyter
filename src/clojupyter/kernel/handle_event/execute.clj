@@ -11,7 +11,7 @@
             [clojure.spec.alpha :as s]
             [clojure.set :as set]
             [io.pedestal.interceptor.chain :as ich]
-            [io.simplect.compose :refer [C def- p P]]
+            [io.simplect.compose :refer [def- C p P]]
             [io.simplect.compose.action :as a :refer [action step]]))
 
 ;;; ------------------------------------------------------------------------------------------------------------------------
@@ -222,4 +222,3 @@
                                    (ops/set-leave-action (action nil)))
                                [ic*provide-input ops/enter-action-interceptor])))
          ctx')))))
-

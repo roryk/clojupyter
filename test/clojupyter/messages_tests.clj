@@ -21,7 +21,7 @@
   (prop/for-all [{:keys [msgtype content]} mg/g-jupmsg-content-any]
     (let [jupmsg (merge ((sh/s*message-header msgtype) content))]
       (and (s/valid? ::jsp/jupmsg jupmsg)
-           (s/valid? ::msp/frames (msgs/jupmsg->frames jupmsg))))))
+           (s/valid? ::msp/frames (msgs/jupmsg->frames (constantly "-SIGNED-") jupmsg))))))
 
 (fact
  "Jupyter protocol frames can be generated from jupmsgs"
@@ -29,11 +29,11 @@
  => true)
 
 (def prop--jupmsgs-can-be-round-tripped
-  (let [sig (u/get-bytes "-SIGNATURE-")]
+  (let [sig (u/string->bytes "-SIGNATURE-")]
     (prop/for-all [{:keys [msgtype content]} mg/g-jupmsg-content-any]
       (let [checker (constantly true)
             jupmsg (merge ((sh/s*message-header msgtype {:signature sig}) content))
-            frames(msgs/jupmsg->frames jupmsg)
+            frames(msgs/jupmsg->frames (constantly "-SIGNATURE-") jupmsg)
             jupmsg' (msgs/frames->jupmsg checker frames)]
         (and (apply = (mapv (P dissoc :preframes :buffers) [jupmsg jupmsg']))
              (= [(into [] (-> jupmsg :preframes .-envelope))
@@ -91,7 +91,7 @@
 
 (def prop--message-metadata-accessors-appear-to-work
   (let [mkarrays #(shg/g-byte-arrays 1 3 10 20)
-        tgen (gen/let [sig (gen/return (u/get-bytes "-SIGNATURE-"))
+        tgen (gen/let [sig (gen/return (u/string->bytes "-SIGNATURE-"))
                        envelope (mkarrays)
                        buffers (mkarrays)
                        mt mg/g-msgtype

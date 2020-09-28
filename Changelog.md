@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.4.0 - Sept 2020
+* New building strategy to allow Clojupyter to share the runtime with third party
+plugins.
+* Updated `docker` and `conda` recipes.
+* Updated the Makefile with new targets and recipes.
+* Clojupyter now respects the `CLASSPATH` environment variable, making it possible
+to run jupyter notebooks in the context of a clojure project managed by leiningen or clojure.
+* Updated `clojupyter.kernel.comm-atom` namespace
+    * Removed agents from the CommsAtom model
+    * The CommsAtom state is held in a clojure atom
+    * Updated `comm-atom-proto` to three methods: `sync-state`, `close!` and `send!`
+    * Added handler for `comm-msg-custom`.
+    * Added new tests for **comm-msg**
+* Removed `clojupyter.cmdline` interface.
+    * Removed tests and dependencies of the `cmdline` interface.
+* Removed namespaces: `clojupyter.misc.display`, `clojupyter.kernel.version`, `clojupyter.kernel.logo`
+    * `clojupyter.misc.display` content moved to `clojupyter.display`.
+    * `clojupyter` namespace now contains `logo` and `version` and `license`
+    (Note the missing \*earmuffs\*, the vars are no longer dynamic)
+* `clojupyter.display/hiccup-html` renamed to `hiccup`
+* `clojupyter.display/html` now only renders html string. To render hiccup data, use `hiccup`
+* New display functions: `vega`, `vega-lite`, `gif`, `pdf`, `json`
+* Removed usage of `deps.edn`. Clojure (the executable) does not work on Windows, so
+relying on it to build the package breaks anyone interested in building on Windows.
+* Bumped depencency versions for remaining deps.
+* Added bash/powershell scripts to manage Clojupyter kernels and plugins.
+
+
 ## v0.3.2
 
 * Reintroduce AOT compilation of `clojupyter.cmdline` (unintentionally dropped in transition to
@@ -103,7 +131,7 @@
   * `#85: Consider the silent and store_history keys of an execute request`
 * [x] **Improve basic install**
   * [x] Eliminate **shell script in `clojupyter` install artifact** (call java directly)
-  * [x] Add **clojupyter icons** (in Jupyter Lab Launcher, top right corner in Jupyter Notebook) 
+  * [x] Add **clojupyter icons** (in Jupyter Lab Launcher, top right corner in Jupyter Notebook)
   * [x] Add **version numbered icons**
   * [x] **Replace shell scripts** with lein functions for basic build operations
     * `clojupyter-install`
@@ -123,7 +151,7 @@
 * [x] Establish numbered releases
 * [x] Update example notebooks
 * [x] Change code structure towards having an **open, extensible architecture** (more work is needed to make it
-  extensible) 
+  extensible)
   * [x] Introduce **handler-based middleware structure** similar to [nREPL](https://nrepl.org) and
     [Ring](https://github.com/ring-clojure/ring)
   * [x] Enable higher degree of **separation of concerns**, thus enabling adding features in a
@@ -167,7 +195,7 @@
       (default-wrapper not-implemented-handler))
     ```
     The modular structure will make it much easier to add functionality going forward.
-    
+
   * [x] **Reorganize code structure**:
   ```
   src
@@ -275,15 +303,15 @@
    * [x] Add `reformat-form`.  Very early experiment with auto-indent / auto-reformat of cells based on
      [Code Prettify](https://jupyter-contrib-nbextensions.readthedocs.io/en/latest/nbextensions/code_prettify/README_code_prettify.html)
      / [Autopep8](https://github.com/kenkoooo/jupyter-autopep8). Very primitive / early cell reformatting
-     prototype appears to work (cf. `./nbextensions/code_prettify/autopep8.yaml`). More work needed (quite a bit), 
+     prototype appears to work (cf. `./nbextensions/code_prettify/autopep8.yaml`). More work needed (quite a bit),
      but it looks like there's a fairly straightforward solution.
 * [x] `user.clj`
   * [x] Added to support experiments with `reformat-form`.
 
-Changes at revision `2913dc17` relative to Clojupyter `master` latest commit per 15 February 2019 (`994f680c`): 
+Changes at revision `2913dc17` relative to Clojupyter `master` latest commit per 15 February 2019 (`994f680c`):
 
 * [x] Ensure compatibility with **Clojure v1.9** and **Clojure v1.10**
-* [x] Enable **`nrepl`-based access** from interactive development environments such as CIDER/Cursive: 
+* [x] Enable **`nrepl`-based access** from interactive development environments such as CIDER/Cursive:
   Leave `:value` unchanged, add `:mime-tagged-value` instead
 * [x] **Update dependencies**, not least move to `nrepl` v0.5.3 and `cider-nrepl` v0.20.0
 * [x] Improve code structure / organization

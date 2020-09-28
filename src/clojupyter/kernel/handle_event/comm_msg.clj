@@ -2,17 +2,15 @@
   (:require
    [clojupyter.kernel.comm-global-state :as comm-global-state]
    [clojupyter.kernel.comm-atom :as ca]
-   [clojupyter.kernel.handle-event.ops :refer [definterceptor s*set-response]]
    [clojupyter.kernel.jup-channels :as jup]
    [clojupyter.log :as log]
    [clojupyter.messages :as msgs]
    [clojupyter.messages-specs :as msp]
-   [clojupyter.state :as state]
-   [clojupyter.util-actions :as u!]
-   [clojure.pprint :as pp]
+
+
    [clojure.spec.alpha :as s]
    [clojure.spec.test.alpha :refer [instrument]]
-   [io.simplect.compose :refer [def- c C p P >->> >>->]]
+   [io.simplect.compose :refer [def- C p P]]
    [io.simplect.compose.action :as a :refer [action step side-effect]]))
 
 ;;; ------------------------------------------------------------------------------------------------------------------------
@@ -37,14 +35,15 @@
   ([ctx action old-state new-state]
    (return ctx action old-state new-state {}))
   ([ctx action old-state new-state extra-map]
-   (if (identical? old-state new-state)
-     (log/debug "COMM calc return unchanged -"
-                (log/ppstr (merge {:ctx ctx, :state old-state}
-                                  {:action (if (= action NO-OP-ACTION) :none action)}
-                                  extra-map)))
-     (log/debug "COMM calc return - " (log/ppstr (merge {:ctx ctx, :action (if (= action NO-OP-ACTION) :none action)
+   (when log/*verbose*
+     (if (identical? old-state new-state)
+      (log/debug "COMM calc return unchanged -"
+                  (log/ppstr (merge {:ctx ctx, :state old-state}
+                                    {:action (if (= action NO-OP-ACTION) :none action)}
+                                    extra-map)))
+      (log/debug "COMM calc return - " (log/ppstr (merge {:ctx ctx, :action (if (= action NO-OP-ACTION) :none action)
                                                          :old-state old-state, :new-state new-state}
-                                                        extra-map))))
+                                                        extra-map)))))
    [action new-state]))
 
 (defn- jupmsg-spec
@@ -86,7 +85,7 @@
 (defmethod handle-comm-msg msgs/COMM-MSG-REQUEST-STATE
   [_ S {:keys [req-message jup] :as ctx}]
   (assert (and req-message jup))
-  (log/debug "received COMM:REQUEST-STATE")
+  (log/debug "Received COMM:REQUEST-STATE")
   (let [method (msgs/message-comm-method req-message)
         comm-id (msgs/message-comm-id req-message)
         present? (comm-global-state/known-comm-id? S comm-id)]
@@ -96,9 +95,9 @@
     (if present?
       (let [msgtype msgs/COMM-MSG
             comm-atom (comm-global-state/comm-atom-get S comm-id)
-            target-name (ca/target comm-atom)
+            target-name (.-target comm-atom)
             msg-metadata ca/MESSAGE-METADATA
-            content (msgs/update-comm-msg comm-id msgs/COMM-MSG-UPDATE target-name @comm-atom)
+            content (msgs/update-comm-msg comm-id msgs/COMM-MSG-UPDATE target-name (ca/sync-state comm-atom))
             A (action (step [`jup/send!! jup IOPUB req-message msgtype msg-metadata content]
                             (jupmsg-spec IOPUB msgtype msg-metadata content)))]
         (return ctx A S))
@@ -107,14 +106,49 @@
 (defmethod handle-comm-msg msgs/COMM-MSG-UPDATE
   [_ S {:keys [req-message] :as ctx}]
   (assert req-message)
-  (log/debug "received COMM:UPDATE")
-  (let [{{:keys [comm_id] {:keys [method state]} :data} :content} req-message]
+  (log/debug "Received COMM:UPDATE")
+  (let [{{:keys [comm_id] {:keys [method state buffer_paths]} :data} :content} req-message]
     (assert comm_id)
     (assert state)
     (if-let [comm-atom (comm-global-state/comm-atom-get S comm_id)]
-      (let [A (action (side-effect #(ca/state-update! comm-atom state)
-                                   {:op :update-agent :comm-id comm_id :new-state state}))]
-        (return ctx A S))
+      (if (seq buffer_paths)
+        (let [_ (log/debug "Received COMM-UPDATE with known comm_id: " comm_id " and state: " state)
+              buffers (msgs/message-buffers req-message)
+              _ (assert (= (count buffer_paths) (count buffers)))
+              [paths _] (msgs/leaf-paths string? keyword buffer_paths)
+              repl-map (reduce merge (map hash-map paths buffers))
+              _ (log/debug "Got paths: " paths "Got buffer replacement map: " repl-map)
+              state (msgs/insert-paths state repl-map)
+              A (action (side-effect #(swap! (.-comm-state_ comm-atom) merge state)
+                                     {:op :update-agent :comm-id comm_id :new-state state}))]
+          (return ctx A S S {:buffers buffers}))
+        (let [A (action (side-effect #(swap! (.-comm-state_ comm-atom) merge state)
+                                    {:op :update-agent :comm-id comm_id :new-state state}))]
+          (log/debug "Received COMM-UPDATE with empty buffers and known comm_id: " comm_id " and state: " state)
+          (return ctx A S)))
+      (do (log/debug "Received COMM-UPDATE with unknown comm_id: " comm_id " and state: " state)
+          (handle-comm-msg-unknown ctx S comm_id)))))
+
+(defmethod handle-comm-msg msgs/COMM-MSG-CUSTOM
+  [_ S {:keys [req-message] :as ctx}]
+  (assert req-message)
+  (let [{{:keys [comm_id] {{event :event :as content} :content :keys [method]} :data} :content} req-message
+        buffers (msgs/message-buffers req-message)]
+    (assert comm_id)
+    (assert (= method msgs/COMM-MSG-CUSTOM))
+    (log/debug "Received COMM-CUSTOM -- comm_id: " comm_id " content: " content "buffers: " buffers)
+    (if-let [comm-atom (comm-global-state/comm-atom-get S comm_id)]
+      (let [k (keyword (str "on-" event))
+            state @comm-atom
+            callback (get-in state [:callbacks k] (constantly nil))]
+        (if (fn? callback)
+          (let [A (action (side-effect #(callback comm-atom content buffers) {:op :callback :comm-id comm_id :content content}))]
+            (return ctx A S))
+          ;; If callback attr is not a fn, we assume it's a collection of fns.
+          (let [call (fn [] (doseq [f callback]
+                              (f comm-atom content buffers)))
+                A (action (side-effect call {:op :callback :comm-id comm_id :content content}))]
+            (return ctx A S))))
       (handle-comm-msg-unknown ctx S comm_id))))
 
 (defmethod calc* msgs/COMM-MSG
@@ -140,17 +174,16 @@
     (assert (map? state))
     (assert (string? comm_id))
     (assert (vector? buffer_paths))
-    (let [present? (comm-global-state/known-comm-id? S comm_id)]
-    (if present?
-        (do (log/debug "COMM-OPEN - already present")
-            (return ctx S))
-        (let [msgtype msgs/COMM-OPEN
-              content (msgs/comm-open-content comm_id data {:target_module target_module :target_name target_name})
-              comm-atom (ca/create jup req-message target_name comm_id state)
-              A (action (step [`jup/send!! jup IOPUB req-message msgtype content]
-                              (jupmsg-spec IOPUB msgtype content)))
-              S' (comm-global-state/comm-atom-add S comm_id comm-atom)]
-          (return ctx A S S'))))))
+    (if-let [present? (comm-global-state/known-comm-id? S comm_id)]
+      (do (log/debug "COMM-OPEN - already present")
+          (return ctx S))
+      (let [msgtype msgs/COMM-OPEN
+            content (msgs/comm-open-content comm_id data {:target_module target_module :target_name target_name})
+            comm-atom (ca/create jup req-message target_name comm_id #{} state)
+            A (action (step [`jup/send!! jup IOPUB req-message msgtype content]
+                            (jupmsg-spec IOPUB msgtype content)))
+            S' (comm-global-state/comm-atom-add S comm_id comm-atom)]
+          (return ctx A S S')))))
 
 (defmethod calc* msgs/COMM-CLOSE
   [_ S {:keys [req-message jup] :as ctx}]
@@ -160,14 +193,16 @@
     (assert (map? data))
     (assert (string? comm_id))
     (if (comm-global-state/known-comm-id? S comm_id)
-      (let [msgtype msgs/COMM-CLOSE
+      (let [_ (log/debug "Received COMM-CLOSE with known comm_id: " comm_id " and data: " data)
+            msgtype msgs/COMM-CLOSE
             content (msgs/comm-close-content comm_id {})
             A (action (step [`jup/send!! jup IOPUB req-message msgtype content]
                             (jupmsg-spec IOPUB msgtype content))
                       )
             S' (comm-global-state/comm-atom-remove S comm_id)]
         (return ctx A S S'))
-      (return ctx S))))
+      (do (log/debug "Received COMM-CLOSE with unknown comm_id: " comm_id)
+          (return ctx S)))))
 
 ;;; ------------------------------------------------------------------------------------------------------------------------
 ;;; COMM-INFO-REQUEST
@@ -178,7 +213,7 @@
   (assert (and req-message req-port jup ctx))
   (let [msgtype msgs/COMM-INFO-REPLY
         content (msgs/comm-info-reply-content (->> (for [comm-id (comm-global-state/known-comm-ids S)]
-                                                     [comm-id (ca/target (comm-global-state/comm-atom-get S comm-id))])
+                                                     [comm-id (.-target (comm-global-state/comm-atom-get S comm-id))])
                                                    (into {})))
         A (action (step [`jup/send!! jup req-port req-message msgtype content]
                         (jupmsg-spec req-port msgtype content)))]

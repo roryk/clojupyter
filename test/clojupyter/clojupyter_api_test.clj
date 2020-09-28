@@ -43,8 +43,8 @@
 
 
 (fact
- "Using `hiccup-html` yields result tagged as `text/html`."
- (let [code "(clojupyter.display/hiccup-html [:p \"para-content\"])"
+ "Using `hiccup` yields result tagged as `text/html`."
+ (let [code "(clojupyter.display/hiccup [:p \"para-content\"])"
        {:keys [leave-action] :as rsp} (eval-code code)
        specs (a/step-specs leave-action)
        [result-spec & result-rest] (->> specs (filter (C :msgtype (p = msgs/EXECUTE-RESULT))))

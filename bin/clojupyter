@@ -1,0 +1,21 @@
+#!/bin/env bash
+
+which lein &>/dev/null && exec=lein
+which clojure &>/dev/null && [[ -r "./deps.edn" ]] && exec=clojure
+
+[[ -z $exec ]] && { echo "Can't find lein or clojure on PATH." >&2; exit 2; }
+
+case $exec in
+    lein)
+    CLASSPATH=$(lein classpath 2>/dev/null)
+    ;;
+    clojure)
+    for path in $(clojure -Spath | sed 's/:/\n/g'); do
+        CLASSPATH+=$(realpath $path):;
+    done
+    ;;
+esac
+
+export CLASSPATH
+
+jupyter $@

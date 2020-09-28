@@ -1,0 +1,112 @@
+#!/bin/env bash
+
+########################################################################################
+#  DEFAULTS
+########################################################################################
+
+USER_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo $HOME/Library
+              else
+                  echo $HOME/.local/lib
+              fi)
+SYSTEM_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/lib
+              else
+                  echo /usr/local/lib
+              fi)
+
+KERNEL=clojupyter-$($(dirname $0)/version)
+
+########################################################################################
+#  ARGUMENTS
+########################################################################################
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --kernel|-k)
+        KERNEL=$2
+        shift
+        shift
+        ;;
+        *)
+        TARGET=$1
+        shift
+        ;;
+    esac
+done
+
+#########################################################################################
+# FAIL CONDITIONS
+#########################################################################################
+
+[[ -d $USER_LIB_PATH/$KERNEL || -d $SYSTEM_LIB_PATH/$KERNEL ]] ||\
+{ echo Can\'t find the kernel dir 2>/dev/null;
+  exit 10; }
+
+[[ -d $SYSTEM_LIB_PATH/$KERNEL ]] && WORKDIR=$SYSTEM_LIB_PATH/$KERNEL
+[[ -d $USER_LIB_PATH/$KERNEL ]] && WORKDIR=$USER_LIB_PATH/$KERNEL
+
+[[ -r $WORKDIR/plugins || -w $WORKDIR/plugins/enabled ]] ||\
+{ echo The kernel does not appear to support plugins >&2;
+  exit 20; }
+
+[[ -n $TARGET ]] ||\
+{ echo Must provide a plugin to disable 2>/dev/null;
+  exit 30; }
+
+#########################################################################################
+# DEPENDENCIES
+#########################################################################################
+
+meta-deps() {
+
+    CP=$(unzip -p $1 META-INF/MANIFEST.MF |\
+         while read line; do
+            if [[ $line =~ ^Class-Path: ]]; then
+                if [[ $line =~ \.jar[[:space:]]*$ ]]; then
+                    echo "${line//Class-Path:/} "
+                else
+                    echo "${line//Class-Path:/}"
+                fi
+            elif [[ $line =~ ^[^:]+$ ]]; then
+                if [[ $line =~ \.jar[[:space:]]*$ ]]; then
+                    echo "${line} "
+                else
+                    echo "$line"
+                fi
+            else
+                continue
+            fi
+        done)
+
+    for jar in $(echo "$CP" | tr -d '\n' | tr -d '\r'); do
+        path=$(dirname $1)
+        echo $(realpath $path/$jar)
+    done
+}
+
+matches=
+for plug in $(ls -pa1 $WORKDIR/plugins/enabled | grep -v /); do
+    name=$(basename -s .jar $plug);
+    for dep in $(meta-deps $WORKDIR/plugins/${plug} | grep -E ^$WORKDIR/plugins); do
+        [[ $(basename -s .jar $dep) =~ $TARGET ]] &&\
+        matches+="$name "
+    done;
+    [[ $name =~ $TARGET ]] &&\
+    matches+="$name ";
+done
+
+[[ -n $matches ]] ||\
+{ echo No plugin found that matches $TARGET >&2;
+  exit 31; }
+
+########################################################################################
+#  DISABLING
+########################################################################################
+
+for plug in $(echo $matches | tr ' ' '\n' | sort -u); do
+    echo Disabling plugin $plug for $KERNEL >&2
+    rm $WORKDIR/plugins/enabled/${plug}.jar
+done
+
+exit 0

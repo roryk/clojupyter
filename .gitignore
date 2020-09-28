@@ -8,5 +8,6 @@
 /classes
 /target
 /tmp/*
+/docker/*/
 pom.xml
 pom.xml.asc

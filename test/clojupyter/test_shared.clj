@@ -13,7 +13,7 @@
          message-id (or message-id "")
          parent-header (or parent-header {})
          session (or session "")
-         signature (or signature (u/get-bytes ""))
+         signature (or signature (u/string->bytes ""))
          username (or username "")
          version (or version msgs/PROTOCOL-VERSION)
          metadata {}

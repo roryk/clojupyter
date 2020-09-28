@@ -11,9 +11,7 @@
             [clojupyter.messages :as msgs]
             [clojupyter.state :as state]
             [clojupyter.util-actions :as u!]
-            [clojure.core.async :refer [>!!]]
-            [io.simplect.compose.action :refer [action step]]
-            [clojure.set :as set]))
+            [io.simplect.compose.action :refer [action step]]))
 
 (defn- handle-comm
   [ctx]

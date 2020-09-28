@@ -1,8 +1,8 @@
 (ns clojupyter.messages
   (:require [clojupyter.jupmsg-specs :as jsp]
             [clojupyter.specs :as sp]
+            [clojupyter]
             [clojupyter.kernel.stacktrace :as stacktrace]
-            [clojupyter.kernel.version :as ver]
             [clojupyter.log :as log]
             [clojupyter.messages-specs :as msp]
             [clojupyter.util :as u]
@@ -11,7 +11,7 @@
             [clojure.spec.test.alpha :refer [instrument]]
             [clojure.string :as str]
             [clojure.walk :as walk]
-            [io.simplect.compose :refer [C def- fmap p P sdefn >->> >>->]]))
+            [io.simplect.compose :refer [def- C fmap p sdefn]]))
 
 (def PROTOCOL-VERSION "5.2")
 
@@ -54,6 +54,7 @@
 ,,
 (def COMM-MSG-UPDATE		"update")
 (def COMM-MSG-REQUEST-STATE	"request_state")
+(def COMM-MSG-CUSTOM    "custom")
 
 
 ;;; ----------------------------------------------------------------------------------------------------
@@ -281,13 +282,19 @@
           strbody (fmap u/bytes->string body)
           buffers (make-jupmsg-buffers (vec (drop n-blobs blobs)))
           preframes (make-jupmsg-preframes envelope delim signature)
-          body-map (parse-json-and-build-jupmsg (select-keys strbody [:header :parent-header :metadata :content]))
-          jupmsg (assoc body-map :preframes preframes :buffers buffers)]
-      (when-not (check-signature jupmsg)
+          orig-body (select-keys strbody [:header :parent-header :metadata :content])]
+          ;; BUG: The body-map is deserialized at this point and parsed to transform its keys from strings to keywords
+          ;; It is later applied to check-signature fn that will reserialize it (print it to json string) to check its signature.
+          ;; Clojure maps don't guarantee position in the printed string, so a single map can generate multiple signatures.
+          ;; clojure.walk/keywordize-keys that's used in the parsing fn bellow will change the printing order of deeply nested
+          ;; maps and that breaks the signing step.
+          ;; We should at this point verify the message signature and continue to parse it only if signature is valid.
+      (when-not (check-signature (assoc orig-body :preframes preframes))
         (let [msg "Invalid message signature"]
+          (log/debug msg ": " (String. signature "UTF-8") ". jupmsg: " orig-body)
           (log/error msg)
          (throw (Exception. msg))))
-      (s/assert ::jsp/jupmsg jupmsg))))
+      (s/assert ::jsp/jupmsg (assoc (parse-json-and-build-jupmsg orig-body) :preframes preframes :buffers buffers)))))
 
 (s/fdef frames->jupmsg
   :args (s/cat :checker fn?, :frames ::msp/frames)
@@ -298,25 +305,26 @@
       jupmsg-keys (drop 2 u/SEGMENT-ORDER)]
 
   (defn jupmsg->frames
-    [{:keys [header parent-header metadata content preframes buffers] :as jupmsg}]
+    [signer {:keys [header parent-header metadata content preframes buffers] :as jupmsg}]
     (assert (every? (complement nil?) (vals (select-keys jupmsg jupmsg-keys))))
     (let [envelope	(.-envelope preframes)
-          signature	(.-signature preframes)
+      ;;    signature	(.-signature preframes)
           _		(assert envelope)
-          _		(assert signature)
           payload-vec	(mapv u/json-str [header parent-header metadata content])
+          signature (signer payload-vec)
+          _		(assert signature)
           byte-buffers	(when buffers
                           (.-buffers buffers))]
         (assert (s/valid? ::sp/byte-arrays envelope))
         (->> (concat envelope
-                     [u/IDSMSG-BYTES (u/get-bytes signature)]
-                     (mapv u/get-bytes payload-vec)
+                     [u/IDSMSG-BYTES (u/string->bytes signature)]
+                     (mapv u/string->bytes payload-vec)
                      byte-buffers)
              vec
              (s/assert ::msp/frames)))))
 
 (s/fdef jupmsg->frames
-  :args (s/cat :jupmsg ::jsp/jupmsg)
+  :args (s/cat :signer fn? :jupmsg ::jsp/jupmsg)
   :ret ::msp/frames)
 (instrument `jupmsg->frames)
 
@@ -333,9 +341,9 @@
   {:error? true, :req-port req-port})
 
 (defn kernelrsp->jupmsg
-  ([port signer kernel-rsp]
-   (kernelrsp->jupmsg port signer kernel-rsp {}))
-  ([port signer
+  ([port kernel-rsp]
+   (kernelrsp->jupmsg port kernel-rsp {}))
+  ([port
     {:keys [rsp-content rsp-msgtype rsp-socket rsp-metadata rsp-buffers req-message]}
     {:keys [messageid now] :as opts}]
    (let [messageid	(str (or messageid (u!/uuid)))
@@ -347,9 +355,9 @@
          metadata	(or rsp-metadata {})
          rsp-buffers	(or rsp-buffers [])
          envelope	(if (= rsp-socket :iopub_port)
-                          [(u/get-bytes rsp-msgtype)]
+                          [(u/string->bytes rsp-msgtype)]
                           (message-envelope req-message))
-         signature	(u/get-bytes (signer [header parent-header metadata rsp-content]))]
+         signature	(u/string->bytes "")]
      (make-jupmsg envelope signature header parent-header metadata rsp-content rsp-buffers))))
 
 ;;; ------------------------------------------------------------------------------------------------------------------------
@@ -539,7 +547,7 @@
   (s/cat :opts (s/? map?))
   ([protocol-version] (kernel-info-reply-content protocol-version {}))
   ([protocol-version {:keys [banner clj-ver help-links implementation version-string]}]
-   (let [version-string		(or version-string (ver/version-string) "clojupyter-0.0.0")
+   (let [version-string		(or version-string clojupyter/version)
          banner			(or banner (str "Clojupyter (" version-string ")"))
          clj-ver		(or clj-ver (clojure-version))
          help-links		(or help-links [])
@@ -615,4 +623,9 @@
   [data metadata tsient]
   {:data data, :metadata metadata, :transient tsient})
 
-
+(sdefn custom-comm-msg
+  (s/cat :comm-id ::comm-id, :method ::msp/comm-message-method,
+       :target-name ::msp/target_name,
+       :content map?)
+  [comm-id method target-name content]
+  (comm-msg-content comm-id {:method method :content content} {:target_name target-name}))

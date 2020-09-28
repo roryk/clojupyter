@@ -10,14 +10,12 @@ A Jupyter kernel for Clojure - run Clojure code in Jupyter Lab, Notebook and Con
 * [Getting Started](#getting-started)
 * [Installation](#installation)
   * [Usage Scenarios - check here to see options for using Clojupyter](./doc/usage-scenarios.md)
-  * [Using Clojupyter as a library](./doc/library.md)
+  * [Using Clojupyter Plugins](./doc/plugins.md)
   * [Clojupyter and Conda](./doc/clojupyter-and-conda.md)
-   * [Conda-installing Clojupyter](./doc/conda-installing.md)
-* [Command line interface](#command-line-interface)
+  * [Conda-installing Clojupyter](./doc/conda-installing.md)
+  * [Docker Image](./doc/docker.md)
 * [To do](#todo)
 * [Collaboration](#collaboration)
-
-##
 
 ![clojupyter](./images/demo.png)
 
@@ -82,45 +80,6 @@ Use `jupyter-kernelspec list` to list all available kernels. So e.g. in case of 
 jupyter-console --kernel=conda-clojupyter
 ```
 
-## Command Line Interface
-
-If you are using Clojupyter as a library, you can use Clojupyter's command line interface to perform
-operations such as listing, installing, and removing Clojupyter kernels.
-
-For example, in a Clojure repository which includes Clojuputer, you can get the list of available
-commands:
-
-```
-bash> clj -m clojupyter.cmdline list-commands
-Clojupyter v0.2.3 - List commands
-
-    Clojupyter commands:
-
-       - help
-       - install
-       - list-commands
-       - list-installs
-       - list-installs-matching
-       - remove-installs-matching
-       - remove-install
-       - version
-
-    You can invoke Clojupyter commands like this:
-
-       clj -m clojupyter.cmdline <command>
-
-    or, if you have set up lein configuration, like this:
-
-       lein clojupyter <command>
-
-    See documentation for details.
-
-exit(0)
-```
-
-See [Command Line Interface](doc/command-line.md) for more details.
-
-
 ## TODO
 
 Development progress is based on voluntary efforts so we can't make any promises, but the
@@ -129,7 +88,7 @@ wish list for clojupyter development looks something like this:
 * [ ] Front-end: Support reindentation, Parinfer, syntax highlighting in code blocks
 * [ ] Connect running kernel to running Clojure instances
 * [ ] Clarify/simplify external access to rendering - eliminate dependency from Oz to clojupyter
-* [ ] Support interactive Jupyter Widgets
+* [X] Support interactive Jupyter Widgets
 
 Feed-back on development priorities is welcome, use the [issue
 list](https://github.com/clojupyter/clojupyter/issues) for input and suggestions.

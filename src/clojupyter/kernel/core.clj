@@ -6,7 +6,6 @@
             [clojupyter.kernel.handle-event-process :as hep :refer [start-handle-event-process]]
             [clojupyter.kernel.init :as init]
             [clojupyter.kernel.jup-channels :refer [jup? make-jup]]
-            [clojupyter.jupmsg-specs :as jsp]
             [clojupyter.log :as log]
             [clojupyter.messages :as msgs]
             [clojupyter.messages-specs :as msp]
@@ -61,7 +60,7 @@
 
 (defn replace-comm-atoms-with-references
   [{:keys [rsp-content] :as kernel-rsp}]
-  (let [[repl-content _] (msgs/leaf-paths ca/comm-atom? ca/model-ref rsp-content)]
+  (let [[repl-content _] (msgs/leaf-paths ca/comm-atom? #(str "IPY_MODEL_" (.-comm-id %)) rsp-content)]
     (assoc kernel-rsp :rsp-content repl-content)))
 
 (def- LOG-COUNTER
@@ -97,9 +96,9 @@
    (C (wrap-skip-shutdown-tokens
        (C (fn [krsp] (extract-kernel-response-byte-arrays krsp))
           (fn [krsp] (replace-comm-atoms-with-references krsp))
-          (fn [krsp] (msgs/kernelrsp->jupmsg port signer krsp))))
+          (fn [krsp] (msgs/kernelrsp->jupmsg port krsp))))
       (logging-transducer (str "OUTBOUND:" port))
-      (wrap-skip-shutdown-tokens (fn [jupmsg] (msgs/jupmsg->frames jupmsg))))))
+      (wrap-skip-shutdown-tokens (fn [jupmsg] (msgs/jupmsg->frames signer jupmsg))))))
 
 (defn- start-zmq-socket-forwarding
   "Starts threads forwarding traffic between ZeroMQ sockets and core.async channels.  Returns a

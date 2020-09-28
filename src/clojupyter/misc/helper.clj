@@ -1,6 +1,6 @@
 (ns clojupyter.misc.helper
   (:require [cemerick.pomegranate :as pg]
-            [clojupyter.misc.display :as display]))
+            [clojupyter.display :as display]))
 
 (defn ^:deprecated add-javascript
   "add a single javascript to front-end, must be last form of cell input
@@ -13,7 +13,7 @@
   See elsewhere for details about clojupyter's support for loading
   third party Javascript libraries."
   [script-src]
-  (display/hiccup-html [:script {:src script-src}]))
+  (display/hiccup [:script {:src script-src}]))
 
 (defn add-dependencies
   "Use Pomegranate to add dependencies with Maven Central and Clojars as

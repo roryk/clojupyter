@@ -1,10 +1,9 @@
 (ns clojupyter.state
   (:require [clojupyter.kernel.comm-global-state :as comm-global-state]
             [clojupyter.kernel.history :as his]
-            [clojupyter.protocol.mime-convertible :as mc]
             [clojupyter.util-actions :as u!]
             [clojupyter.zmq-util :as zutil]
-            [io.simplect.compose :refer [c C p P >->> >>->]]))
+            [io.simplect.compose :refer [p P]]))
 
 (def ^:private EMPTY-QUEUE [])
 

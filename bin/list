@@ -1,0 +1,92 @@
+#!/bin/env bash
+
+########################################################################################
+#  DEFAULTS
+########################################################################################
+
+USER_DATA_PATH=$(if [[ -d ${JUPYTER_DATA_DIR}/kernels ]]; then
+                echo ${JUPYTER_DATA_DIR}/kernels
+            elif [[ $(uname -s) == Darwin ]]; then
+                echo $HOME/Library/Jupyter/kernels
+            elif [[ -d ${XDG_DATA_HOME}/jupyter/kernels ]]; then
+                echo $XDG_DATA_HOME/jupyter/kernels
+            else
+                echo $HOME/.local/share/jupyter/kernels
+            fi)
+USER_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo $HOME/Library
+              else
+                  echo $HOME/.local/lib
+              fi)
+SYSTEM_DATA_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/share/jupyter/kernels
+              else
+                  echo /usr/local/share/jupyter/kernels
+              fi)
+SYSTEM_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/lib
+              else
+                  echo /usr/local/lib
+              fi)
+
+########################################################################################
+#  ARGUMENTS & FAIL CONDITIONS
+########################################################################################
+
+all=""
+for dir in $USER_DATA_PATH/*/ $SYSTEM_DATA_PATH/*/; do
+    match=$(jq '.display_name' $dir/kernel.json 2>/dev/null | sed -nE 's/"Clojure \((.*)\)"/\1/g p')
+    [[ -n $match ]] && all+="${match}:${dir}	"
+done
+
+if [[ $# == 0 || $1 == '' ]]; then
+    res=$(echo "$all" | sed 's/\t/\n/g')
+elif [[ $# -gt 1 ]]; then
+    echo Error: Wrong number of arguments \($#\) passed to program. >&2
+    exit 1
+else
+    for el in $all; do
+        [[ $(echo $el | cut -d: -f1) =~ $1 ]] && res+="$el "
+	done
+fi
+
+[[ -z "$res" ]] && { echo No installed kernel found >&2; exit 0; }
+
+
+########################################################################################
+#  OUTPUT
+########################################################################################
+
+cols=$(tput cols)
+id_cols=$(( $cols / 3 - 1 ))
+path_cols=$(( $cols - $id_cols - 2 ))
+
+b=$(tput bold)
+no_b=$(tput sgr0)
+
+printf "${b}%-${id_cols}s${no_b}|${b}%-${path_cols}s${no_b}\n" Identity Path
+echo $(printf -- "-%.0s" $(seq ${id_cols}))\|$(printf -- "-%.0s" $(seq ${path_cols}))
+for r in $res; do
+    r_name=$(echo $r | cut -d: -f1)
+    printf "%-${id_cols}s|%-${path_cols}s\n" $(echo $r | tr : ' ')
+    [[ -r $USER_LIB_PATH/$r_name/plugins ]] && LIBPATH=$USER_LIB_PATH/$r_name/plugins
+    [[ -r $SYSTEM_LIB_PATH/$r_name/plugins ]] && LIBPATH=$SYSTEM_LIB_PATH/$r_name/plugins
+    [[ -n $LIBPATH ]] &&\
+        prefix='Plugins: '
+        for plug in $LIBPATH/*.jar; do
+            plug_name=$(basename -s .jar $plug)
+            [[ $plug_name == "*" ]] && break
+            if [[ $id_cols -gt $(( ${#prefix} + ${#plug_name} + 2 )) ]]; then
+                suffix="$(tput cr)$(tput cuf $id_cols)|"
+            else
+                suffix=
+            fi
+            if [[ -r $LIBPATH/enabled/${plug_name}.jar ]]; then
+                echo "${prefix}$(tput setaf 40)✔︎ ${plug_name}$(tput sgr0)${suffix}"
+            else
+                echo "${prefix}$(tput setaf 9)${plug_name}$(tput sgr0)${suffix}"
+            fi
+            prefix="         "
+        done
+    echo $(printf -- "-%.0s" $(seq ${id_cols}))\|$(printf -- "-%.0s" $(seq ${path_cols}))
+done

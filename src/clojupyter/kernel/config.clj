@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [omniconf.core :as cfg]
-            [io.simplect.compose :refer [def- c C p P]]))
+            [io.simplect.compose :refer [def-]]))
 
 (cfg/define
   {:log-level			{:description	"Default log level as defined by com.taoensso/timbre."

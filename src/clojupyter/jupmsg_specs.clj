@@ -1,7 +1,6 @@
 (ns clojupyter.jupmsg-specs
   (:require
-   [clojure.spec.alpha :as s]
-   [io.simplect.compose :refer [p]]))
+   [clojure.spec.alpha :as s]))
 
 
 (s/def ::header				(s/keys :req-un [::msg_id ::msg_type ::session]
@@ -12,4 +11,3 @@
 (s/def ::jupmsg				(s/keys :req-un [::header ::parent-header
                                                          ::metadata ::content
                                                          ::preframes ::buffers]))
-

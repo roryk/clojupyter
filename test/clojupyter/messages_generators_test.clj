@@ -1,5 +1,5 @@
 (ns clojupyter.messages-generators-test
-  (:require [clojupyter.kernel.version :as ver]
+  (:require [clojupyter]
             [clojupyter.messages :as msgs]
             [clojupyter.messages-specs :as msp]
             [clojupyter.test-shared :as ts]
@@ -229,7 +229,7 @@
             impl (shg/g-nilable (gen/elements ["some-other-impl"]))
             proto-ver (shg/g-nilable (gen/frequency [[10 (gen/elements [msgs/PROTOCOL-VERSION])]
                                                     [1 (gen/elements ["5.1" "5.2" "5.3 " "4.0" "5.8" "7.0" "99.1"])]]))
-            version-str (shg/g-nilable (gen/frequency [[10 (gen/elements [(ver/version-string)])]
+            version-str (shg/g-nilable (gen/frequency [[10 (gen/elements [clojupyter/version])]
                                                       [1 (gen/elements ["0.0.0" "1.2.3" "2.3.4" "5.6.0"])]]))]
     (R {:msgtype msgs/KERNEL-INFO-REPLY
         :content (->> (msgs/kernel-info-reply-content msgs/PROTOCOL-VERSION

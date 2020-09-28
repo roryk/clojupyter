@@ -9,9 +9,9 @@
 
   Alpha version - breakage may happen.  Please report issues or
   missing features."
-  (:require [clojupyter.misc.display :as display]
+  (:require [clojupyter.display :as display]
             [clojupyter.util-actions :as u!]
-            [clojure.data.json :as json]
+            [cheshire.core :as json]
             [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :refer [instrument]]
             [clojure.string :as str]))
@@ -43,7 +43,7 @@
   Cf. `amd-add-javascript` for usage information."
   [ident-vec javascript-function]
   (amd-wrap-semicolons
-   (format "require(%s,%s)" (json/write-str (mapv name ident-vec)) javascript-function)))
+   (format "require(%s,%s)" (json/generate-string (mapv name ident-vec)) javascript-function)))
 
 (defn amd-add-javascript
   "Returns a string representing a Javascript `config()` statement for
@@ -103,12 +103,12 @@
        :shim (->> jsdefs
                   (map (fn [{:keys [ident exports]}] {ident {:exports exports}}))
                   (into {}))}
-      json/write-str
+      json/generate-string
       amd-wrap-config))
 
 (defn amd-add-javascript-html
   "Same as `amd-add-javascript` except the returned string is embedded in a
-  `script` element wrapped in a `hiccup-html` form.
+  `script` element wrapped in a `hiccup` form.
   Cf. `amd-add-javascript` for details.
 
   NOTE: Evaluation of `amd-add-javascript-html` must be the last form
@@ -116,7 +116,7 @@
   that the library was loaded."
   ([jsdefs] (amd-add-javascript-html {} jsdefs))
   ([{:keys [brief?] :or {brief? false}} jsdefs]
-   (display/hiccup-html [:div
+   (display/hiccup [:div
                          [:script (amd-wrap-semicolons (amd-add-javascript jsdefs))]
                          (if brief?
                            [:pre "Javascript libraries added."]
@@ -141,5 +141,3 @@
   (instrument `and-wrap-require)
   (map (partial u!/assoc-meta! :style/indent :defn)
        [#'amd-wrap-require #'amd-wrap-semicolons #'amd-wrap-config]))
-
-

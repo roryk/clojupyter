@@ -1,0 +1,120 @@
+#!/bin/env bash
+
+########################################################################################
+#  DEFAULTS
+########################################################################################
+USER_DATA_PATH=$(if [[ -d ${JUPYTER_DATA_DIR}/kernels ]]; then
+                echo ${JUPYTER_DATA_DIR}/kernels
+            elif [[ $(uname -s) == Darwin ]]; then
+                echo $HOME/Library/Jupyter/kernels
+            elif [[ -d ${XDG_DATA_HOME}/jupyter/kernels ]]; then
+                echo $XDG_DATA_HOME/jupyter/kernels
+            else
+                echo $HOME/.local/share/jupyter/kernels
+            fi)
+USER_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo $HOME/Library
+              else
+                  echo $HOME/.local/lib
+              fi)
+SYSTEM_DATA_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/share/jupyter/kernels
+              else
+                  echo /usr/local/share/jupyter/kernels
+              fi)
+SYSTEM_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/lib
+              else
+                  echo /usr/local/lib
+              fi)
+
+SYSTEM=false
+VERSION=$($(dirname $0)/version)
+IDENT="clojupyter-$VERSION"
+JAR=target/${IDENT}.jar
+
+HELP='not implemented'
+
+########################################################################################
+# ARGUMENTS
+########################################################################################
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --system)
+        SYSTEM=true
+        shift
+        ;;
+        --help)
+        echo $HELP
+        exit 0
+        ;;
+        --identity|-i)
+        IDENT=$2
+        shift
+        shift
+        ;;
+        --jar|-j)
+        JAR=$2
+        shift
+        shift
+        ;;
+        *)
+        echo Unknown argument $1
+        exit 1
+        ;;
+    esac
+done
+
+if [[ $SYSTEM == true ]]; then
+    KDIR=$SYSTEM_DATA_PATH
+    LIBDIR=$SYSTEM_LIB_PATH
+else
+    KDIR=$USER_DATA_PATH
+    LIBDIR=$USER_LIB_PATH
+fi
+
+#########################################################################################
+# FAIL CONDITIONS
+#########################################################################################
+
+[[ -f $JAR && -r $JAR ]] || { echo Can\'t read the jarfile. >&2;
+                              exit 10; }
+
+[[ -w $KDIR ]] ||\
+if [[ -d $KDIR ]]; then
+    echo Can\'t install clojupyter in $KDIR. Insufficient permissions. >&2
+else
+    mkdir -p $KDIR || exit 20
+fi
+
+[[ -w $LIBDIR ]] ||\
+if [[ -d $LIBDIR ]]; then
+    echo Can\'t install clojupyter in $LIBDIR. Insufficient permissions. >&2
+else
+    mkdir -p $LIBDIR || exit 21
+fi
+
+if [[ -f $KDIR/$IDENT/kernel.json ]]; then
+    echo $IDENT is already installed in $KDIR >&2
+    exit 30
+elif [[ -f $LIBDIR/$IDENT/$IDENT.jar || -d $LIBDIR/$IDENT/lib ]]; then
+    echo $IDENT is already installed in $LIBDIR >&2;
+    exit 31;
+fi
+
+#########################################################################################
+# INSTALLING
+#########################################################################################
+
+echo Installing $IDENT >&2
+mkdir -p $LIBDIR/$IDENT/plugins/enabled 2>/dev/null
+mkdir $KDIR/$IDENT 2>/dev/null
+cp $JAR $LIBDIR/$IDENT/$IDENT.jar &&\
+cp -r target/lib $LIBDIR/$IDENT/
+pushd $LIBDIR/$IDENT
+ln -s ../$IDENT.jar lib
+popd
+cp resources/clojupyter/assets/logo-64x64.png $KDIR/$IDENT &&\
+
+$(dirname $0)/kernel.json -i $IDENT $LIBDIR >$KDIR/$IDENT/kernel.json

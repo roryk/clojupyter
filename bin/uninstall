@@ -1,0 +1,64 @@
+#!/bin/env bash
+
+########################################################################################
+#  DEFAULTS
+########################################################################################
+
+USER_DATA_PATH=$(if [[ -d ${JUPYTER_DATA_DIR}/kernels ]]; then
+                echo ${JUPYTER_DATA_DIR}/kernels
+            elif [[ $(uname -s) == Darwin ]]; then
+                echo $HOME/Library/Jupyter/kernels
+            elif [[ -d ${XDG_DATA_HOME}/jupyter/kernels ]]; then
+                echo $XDG_DATA_HOME/jupyter/kernels
+            else
+                echo $HOME/.local/share/jupyter/kernels
+            fi)
+USER_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo $HOME/Library
+              else
+                  echo $HOME/.local/lib
+              fi)
+SYSTEM_DATA_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/share/jupyter/kernels
+              else
+                  echo /usr/local/share/jupyter/kernels
+              fi)
+SYSTEM_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/lib
+              else
+                  echo /usr/local/lib
+              fi)
+
+########################################################################################
+# ARGUMENTS & FAIL CONDITIONS
+########################################################################################
+
+[[ $# -gt 1 ]] && { echo Error: Wrong number of arguments \($#\) passed to program. >&2;
+                    exit 1; }
+if [[ $# == 0 || -z $1 ]]; then
+    target=clojupyter-$($(dirname $0)/version)
+else
+    target=$1
+fi
+
+#########################################################################################
+# UNINSTALLING
+#########################################################################################
+
+for dir in $USER_DATA_PATH/*/; do
+    [[ $dir =~ $target ]] &&\
+    { echo Uninstalling $(basename $dir);
+      rm -rf $dir 2>/dev/null;
+      rm -rf $USER_LIB_PATH/$(basename $dir) 2>/dev/null;
+   }
+done
+
+for dir in $SYSTEM_DATA_PATH/*/; do
+    [[ $dir =~ $target ]] &&\
+    { echo Uninstalling $(basename $dir);
+      rm -rf $dir 2>/dev/null;
+      rm -rf $SYSTEM_LIB_PATH/$(basename $dir) 2>/dev/null;
+   }
+done
+
+exit 0

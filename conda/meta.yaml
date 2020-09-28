@@ -1,0 +1,20 @@
+package:
+    name: clojupyter
+    version: 0.4.0
+
+about:
+    description: Clojupyter - Clojure kernel for Jupyter
+    home: https://github.com/clojupyter/clojupyter
+    licence: MIT
+
+source:
+    path: ../target
+
+build:
+    number: 0
+
+requirements:
+    run:
+        - openjdk=8
+        - jupyter
+        - jupyterlab

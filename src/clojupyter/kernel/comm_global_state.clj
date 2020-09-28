@@ -1,10 +1,7 @@
 (ns clojupyter.kernel.comm-global-state
   "Implements functionality needed to manipulate COMM object state(s)."
   (:require
-   [clojupyter.util-actions :as u!]
-   [clojure.spec.alpha :as s]
-   [clojure.spec.test.alpha :refer [instrument]]
-   [io.simplect.compose :refer [def- c C p P >->> >>->]]))
+   [clojupyter.util-actions :as u!]))
 
 (declare ->CommGlobalState)
 

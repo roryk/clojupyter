@@ -3,7 +3,6 @@
             [clojupyter.kernel.handle-event.ops :as ops :refer [definterceptor]]
             [clojupyter.messages :as msgs]
             [clojupyter.plan :as plan :refer [s*bind-state]]
-            [io.simplect.compose :refer [def- c C p P]]
             [io.simplect.compose.action :as action :refer [action step]]))
 
 (definterceptor ic*interrupt msgs/INTERRUPT-REQUEST

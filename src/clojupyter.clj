@@ -1,12 +1,19 @@
 (ns clojupyter
-  (:require [clojupyter.kernel.logo :as logo]
-            [clojupyter.kernel.version :as ver]))
+  (:require [clojupyter.display :as display]
+            [clojure.java.io :as io])
+  (:import javax.imageio.ImageIO))
 
-(def ^:dynamic *logo*		(logo/logo-image))
-(def ^:dynamic *license*	(logo/render-license))
+(def license
+  (->> (io/resource "clojupyter/assets/license.txt")
+       slurp
+       (display/render-mime :text/plain)))
 
-(def ^:dynamic *version*
-  "Value is a map representing the version of clojupyter as a map with the keys `:version/major`,
-  `:version/minor`, `:version/incremental`, and `qualifier`, where the former 3 are integers and the latter
-  is a string.  Analoguous to `*clojure-version*`."
-  ver/NO-VERSION)
+(def logo
+  (->> (io/resource "clojupyter/assets/logo-350x80.png")
+       (ImageIO/read)))
+
+(def version
+  (->> (io/resource "META-INF/MANIFEST.MF")
+      slurp
+      (re-find  #"Leiningen-Project-Version: (.+)")
+      second))

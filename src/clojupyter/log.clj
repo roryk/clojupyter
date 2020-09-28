@@ -2,8 +2,10 @@
   (:require [clojupyter.kernel.config :as cfg]
             [clojure.pprint :as pp]
             [clojure.string :as str]
-            [io.simplect.compose :refer [def- c C p P]]
+            [io.simplect.compose :refer [def- C]]
             [taoensso.timbre :as timbre]))
+
+(def ^:dynamic *verbose* false)
 
 (defmacro debug
   [& args]
@@ -16,6 +18,10 @@
 (defmacro error
   [& args]
   `(timbre/error ~@args))
+
+(defmacro warn
+  [& args]
+  `(timbre/warn ~@args))
 
 (defmacro with-level
   [level & body]
@@ -57,7 +63,8 @@
 
 (def CONFIG {:timestamp-opts {:pattern "HH:mm:ss.SSS", :locale :jvm-default, :timezone :utc}
              :ns-blacklist ["io.pedestal.*"]
-             :output-fn output-fn})
+             :output-fn output-fn
+             :level :warn})
 
 (defn- set-clojupyter-config!
   []

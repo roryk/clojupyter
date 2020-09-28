@@ -1,8 +1,0 @@
-CLOJUPYTER_SRC_DIR=$RECIPE_DIR/install-items
-CLOJUPYTER_KERNEL_DIR=$PREFIX/share/jupyter/kernels/conda-clojupyter
-JAR_FILE=$CLOJUPYTER_SRC_DIR/clojupyter-standalone.jar
-PNG_FILE=$CLOJUPYTER_SRC_DIR/logo-64x64.png
-
-mkdir -p $CLOJUPYTER_KERNEL_DIR && \
-	cp "$JAR_FILE" $CLOJUPYTER_KERNEL_DIR && \
-	cp "$PNG_FILE" $CLOJUPYTER_KERNEL_DIR

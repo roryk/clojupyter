@@ -1,8 +1,7 @@
 (ns clojupyter.kernel.init
-  (:require clojupyter
+  (:require [clojupyter]
             [clojupyter.kernel.config :as cfg]
             [clojupyter.kernel.stacktrace :as stacktrace]
-            [clojupyter.kernel.version :as version]
             [clojupyter.log :as log]
             [clojupyter.state :as state]
             [clojupyter.util-actions :as u!]))
@@ -29,9 +28,8 @@
     false
     (do (cfg/init!)
         (log/init!)
-        (let [ver (version/version)]
-          (alter-var-root #'clojupyter/*version* (constantly ver))
-          (log/info (str "Clojupyter version " (version/version-string-long ver) ".")))
+        (let [ver clojupyter/version]
+          (log/info (str "Clojupyter version " ver ".")))
         (when-let [config-file (cfg/config-file)]
           (log/info (str "Configuration read from " config-file "."))
           (log/info (str "Configuration: ") (cfg/configuration)))
@@ -39,5 +37,3 @@
         (stacktrace/init!)
         (setup-shutdown-hook)
         (reset! INITIALIZED? true))))
-
-

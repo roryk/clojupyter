@@ -108,6 +108,8 @@
                   (mapv (C :rsp-content :text))))))))
  => true)
 
+;; Nobody is calling the display fn, except this test right here.
+#_
 (fact
  "Calling `display` yields `display_message` on `:iopub_port"
  (log/with-level :error

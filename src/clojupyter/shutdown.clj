@@ -2,11 +2,10 @@
   "Implements Clojupter for shutting down: All threads monitor a special channel to which a shutdown
   token is sent when Clojupyter is to terminate."
   (:require [clojupyter.log :as log]
-            [clojupyter.util :as u]
             [clojupyter.util-actions :as u!]
             [clojure.core.async :as async]
             [clojure.pprint :as pp]
-            [io.simplect.compose :refer [def- c C p P]]))
+            [io.simplect.compose :refer [P]]))
 
 (defmacro initiating-shutdown-on-exit
   [[token terminator-binding] & body]

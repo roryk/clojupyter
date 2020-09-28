@@ -1,0 +1,142 @@
+#!/bin/env bash
+
+########################################################################################
+#  DEFAULTS
+########################################################################################
+
+USER_DATA_PATH=$(if [[ -d ${JUPYTER_DATA_DIR}/kernels ]]; then
+                echo ${JUPYTER_DATA_DIR}/kernels
+            elif [[ $(uname -s) == Darwin ]]; then
+                echo $HOME/Library/Jupyter/kernels
+            elif [[ -d ${XDG_DATA_HOME}/jupyter/kernels ]]; then
+                echo $XDG_DATA_HOME/jupyter/kernels
+            else
+                echo $HOME/.local/share/jupyter/kernels
+            fi)
+USER_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo $HOME/Library
+              else
+                  echo $HOME/.local/lib
+              fi)
+SYSTEM_DATA_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/share/jupyter/kernels
+              else
+                  echo /usr/local/share/jupyter/kernels
+              fi)
+SYSTEM_LIB_PATH=$(if [[ $(uname -s) == Darwin ]]; then
+                  echo /usr/lib
+              else
+                  echo /usr/local/lib
+              fi)
+KERNEL=clojupyter-$($(dirname $0)/version)
+
+########################################################################################
+#  ARGUMENTS
+########################################################################################
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --kernel|-k)
+        KERNEL=$2
+        shift
+        shift
+        ;;
+        *)
+        TARGET=$1
+        shift
+        ;;
+    esac
+done
+
+########################################################################################
+#  FAIL CONDITIONS
+########################################################################################
+
+[[ -d $USER_DATA_PATH/$KERNEL || -d $SYSTEM_DATA_PATH/$KERNEL ]] ||\
+{ echo Can\'t find the kernel dir 2>/dev/null;
+  exit 10; }
+
+[[ -d $SYSTEM_DATA_PATH/$KERNEL ]] &&\
+{ KDIR=$SYSTEM_DATA_PATH/$KERNEL;
+  LIBDIR=$SYSTEM_LIB_PATH/$KERNEL; }
+
+[[ -d $USER_DATA_PATH/$KERNEL ]] &&\
+{ KDIR=$USER_DATA_PATH/$KERNEL;
+  LIBDIR=$USER_LIB_PATH/$KERNEL; }
+
+[[ -r $LIBDIR/plugins || -w $LIBDIR/plugins/enabled ]] ||\
+{ echo Can\'t write to plugin directory. >&2;
+  exit 20; }
+
+[[ -n $TARGET ]] ||\
+{ echo Must provide a plugin to enable 2>/dev/null;
+  exit 30; }
+
+########################################################################################
+#  DEPENDENCIES
+########################################################################################
+
+meta-deps() {
+
+    CP=$(unzip -p $1 META-INF/MANIFEST.MF |\
+         while read line; do
+            if [[ $line =~ ^Class-Path: ]]; then
+                if [[ $line =~ \.jar[[:space:]]*$ ]]; then
+                    echo "${line//Class-Path:/} "
+                else
+                    echo "${line//Class-Path:/}"
+                fi
+            elif [[ $line =~ ^[^:]+$ ]]; then
+                if [[ $line =~ \.jar[[:space:]]*$ ]]; then
+                    echo "${line} "
+                else
+                    echo "$line"
+                fi
+            else
+                continue
+            fi
+        done)
+
+    for jar in $(echo "$CP" | tr -d '\n' | tr -d '\r'); do
+        path=$(dirname $1)
+        echo $(realpath $path/$jar)
+    done
+}
+
+matches=
+for plug in $(ls -pa1 $LIBDIR/plugins | grep -v /); do
+    [[ $(basename -s .jar ${plug}) =~ $TARGET ]] &&\
+    { name=$(basename -s .jar $plug);
+      for dep in $(meta-deps $LIBDIR/plugins/${name}.jar | grep -E ^$LIBDIR/plugins); do
+          matches+="$(basename -s .jar $dep) "
+      done;
+      matches+="$name "; }
+done
+
+[[ -n $matches ]] ||\
+{ echo No plugin found that matches $TARGET >&2;
+  exit 31; }
+
+enabled_plugs=
+for plug in $(ls -pa1 $LIBDIR/plugins/enabled | grep -v /); do
+    enabled_plugs+="$LIBDIR/plugins/$plug "
+done
+
+new_plugs="$enabled_plugs"
+for match in $(echo $matches | tr ' ' '\n' | sort -u); do
+    (echo "$enabled_plugs" | grep $LIBDIR/plugins/${match}.jar &>/dev/null) ||\
+    { new_plugs=$(cat <(echo "$new_plugs") <(echo "$LIBDIR/plugins/${match}.jar"));
+      echo Enabling plugin $match for $KERNEL >&2; }
+done
+
+########################################################################################
+#  ENABLING
+########################################################################################
+
+[[ "$new_plugs" != "$enabled_plugs" ]] &&\
+{ cd $LIBDIR/plugins/enabled;
+  for plug in $new_plugs; do
+      ln -s ../$(basename $plug) . 2>/dev/null
+  done; }
+
+exit 0

@@ -32,8 +32,8 @@
                  [inbound-2 outbound-2] (cjpzmq/start ztx :two addr term
                                                       {:connect? true, :zmq-socket-type :pair})]
              (count (for [k (range ITERS)]
-                      (let [v1 [(u/get-bytes (str "msg-" k))]
-                            v2 [(u/get-bytes (str "MSG-" k))]]
+                      (let [v1 [(u/string->bytes (str "msg-" k))]
+                            v2 [(u/string->bytes (str "MSG-" k))]]
                         (>!! outbound-1 v1)
                         (assert (= (map (p into []) v1)
                                    (map (p into []) (<!! inbound-2))))

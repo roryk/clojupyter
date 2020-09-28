@@ -67,7 +67,7 @@
             (merge (a/output evaluated-action)))
         (let [fl (failure evaluated-action)
               trace (when fl (binding [aviso-ex/*fonts* nil] (aviso-ex/format-exception fl)))
-              logdata {:evaluated-action evaluated-action}] 
+              logdata {:evaluated-action evaluated-action}]
           (log/error "Action failed:" (log/ppstr logdata)
                      \newline "  Stacktrace:" \newline trace)
           (throw (ex-info (str "Action failed: " evaluated-action) logdata)))))))

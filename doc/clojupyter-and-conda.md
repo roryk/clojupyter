@@ -15,8 +15,8 @@ tarfile containing the module to be installed plus instructions on how to instal
 `conda build` to build a package.  Conda **channels** contain packages and conform to a standard
 structure and contain an index of available packages.  Conda is able to install from channels and
 uses the indexes in the channel to solve for requirements and dependencies.  A conda package has a
-**version number** and conda package versions have a **build number** which enable you to build
-versions multiple times and keep them distinct from a package management point of view.
+**version number** and a **build number** which enable you to build versions multiple times
+and keep them distinct from a package management point of view.
 
 ## Clojupyter's use of Conda
 

@@ -1,8 +1,6 @@
 (ns clojupyter.zmq
   (:require [clojupyter.log :as log]
             [clojupyter.shutdown :as shutdown]
-            [clojupyter.state :as state]
-            [clojupyter.util :as u]
             [clojupyter.util-actions :as u!]
             [clojupyter.zmq-specs :as zp]
             [clojupyter.zmq-util :as zutil]
@@ -10,7 +8,7 @@
             [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :refer [instrument]]
             [clojure.string :as str]
-            [io.simplect.compose :refer [C c p P]]))
+            [io.simplect.compose :refer [C c]]))
 
 ;;; ------------------------------------------------------------------------------------------------------------------------
 ;;; INTERNAL
@@ -136,4 +134,3 @@
   :ret (s/and (s/coll-of ::zp/zsocket) ::zp/two-tuple))
 
 (instrument `start)
-

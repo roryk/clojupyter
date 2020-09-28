@@ -3,12 +3,8 @@
   code cells, but supporting code completion, access to documentation strings, and interrupting
   currently running evaluations."
   (:require
-   [clojure.pprint			:as pp]
-   [io.simplect.compose					:refer [def-]]
    [nrepl.core				:as nrepl]
    [nrepl.server]
-   ,,
-   [clojupyter.messages		:as msgs]
    [clojupyter.kernel.nrepl-middleware	:as mw]
    [clojupyter.log			:as log]
    [clojupyter.util-actions		:as u!]
