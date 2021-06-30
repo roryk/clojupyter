@@ -124,7 +124,7 @@
 
 (defmulti  find-executable (fn [_] (os/operating-system)))
 (letfn [(find-exe [exe]
-          (let [{:keys [out err exit]} (sh/sh "/usr/bin/env which" exe)]
+          (let [{:keys [out err exit]} (sh/sh "/usr/bin/env" "which" exe)]
             (when (zero? exit)
               (-> out str/trim io/file)))) ]
   (defmethod find-executable :macos [exe]
